@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Underwater Quizlet OS</title>
+    <style>
+        :root {
+            --deep-blue: #001219;
+            --ocean-cyan: #94d2bd;
+            --neon-purple: #9d50bb;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, #005f73 0%, var(--deep-blue) 100%);
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* BUBBLE ENGINE */
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            bottom: -50px;
+            animation: rise var(--d) infinite ease-in;
+            pointer-events: none;
+        }
+
+        @keyframes rise {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            50% { opacity: 0.4; }
+            100% { transform: translateY(-110vh) scale(1.5); opacity: 0; }
+        }
+
+        /* RYBY */
+        .fish {
+            position: absolute;
+            font-size: 2rem;
+            animation: swim var(--t) infinite linear;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes swim {
+            from { left: -100px; transform: scaleX(1); }
+            to { left: 110vw; transform: scaleX(1); }
+        }
+
+        /* HLAVNÍ KONTEJNER */
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--ocean-cyan);
+            border-radius: 25px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            margin-top: 50px;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(148, 210, 189, 0.2);
+            text-align: center;
+        }
+
+        .card {
+            height: 250px;
+            perspective: 1000px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            border: 2px solid var(--ocean-cyan);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            backface-visibility: hidden;
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .card-back { 
+            transform: rotateY(180deg); 
+            color: var(--ocean-cyan);
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        select, button {
+            background: var(--deep-blue);
+            color: var(--ocean-cyan);
+            border: 1px solid var(--ocean-cyan);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); }
+
+        .star { color: gold; font-size: 1.2rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="bg-elements"></div>
+
+    <div class="glass-panel">
+        <h1 style="color: var(--ocean-cyan); text-shadow: 0 0 10px var(--ocean-cyan);">RIŠA OS 🌊</h1>
+        
+        <select id="subjectSelect" onchange="loadSubject()">
+            <option value="BI301K">BI301K - Hlavní</option>
+            <option value="PB111">PB111 - Operační systémy</option>
+            <option value="PB152">PB152 - Programování</option>
+        </select>
+
+        <div class="card" id="mainCard" onclick="this.classList.toggle('flipped')">
+            <div class="card-inner">
+                <div class="card-front" id="qText">Vyber předmět...</div>
+                <div class="card-back" id="aText">...a začni se učit!</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="prev()">⬅ Zpět</button>
+            <span id="counter">0 / 0</span>
+            <button onclick="next()">Vpřed ➡</button>
+            <br>
+            <button onclick="toggleStar()" style="border-color: gold;">★ Star</button>
+        </div>
+    </div>
+
+    <script>
+        // DATA - Simulace tvých souborů
+        const allData = {
+            "BI301K": [
+                "Kernel:Jádro operačního systému",
+                "Deadlock:Uváznutí procesů",
+                "Paging:Stránkování paměti"
+            ],
+            "PB111": [
+                "Bash:Unixový shell",
+                "Pipe:Propojení výstupu a vstupu"
+            ]
+        };
+
+        let currentCards = [];
+        let index = 0;
+        let starred = JSON.parse(localStorage.getItem('starred_cards') || "[]");
+
+        // BUBBLE & FISH ENGINE
+        function createOcean() {
+            const container = document.getElementById('bg-elements');
+            const fishTypes = ['🐟', '🐠', '🦈', '🐙', '🐡'];
+            
+            for(let i=0; i<15; i++) {
+                const b = document.createElement('div');
+                b.className = 'bubble';
+                b.style.left = Math.random() * 100 + 'vw';
+                b.style.width = b.style.height = (Math.random() * 20 + 10) + 'px';
+                b.style.setProperty('--d', (Math.random() * 5 + 5) + 's');
+                b.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(b);
+            }
+
+            for(let i=0; i<5; i++) {
+                const f = document.createElement('div');
+                f.className = 'fish';
+                f.innerText = fishTypes[Math.floor(Math.random() * fishTypes.length)];
+                f.style.top = Math.random() * 80 + 'vh';
+                f.style.setProperty('--t', (Math.random() * 10 + 10) + 's');
+                f.style.animationDelay = Math.random() * 10 + 's';
+                container.appendChild(f);
+            }
+        }
+
+        function loadSubject() {
+            const sub = document.getElementById('subjectSelect').value;
+            // V reálu tady bude: fetch(`./data/${sub}_1.txt`)
+            currentCards = allData[sub] || [];
+            index = 0;
+            updateUI();
+        }
+
+        function updateUI() {
+            if(currentCards.length === 0) return;
+            const [q, a] = currentCards[index].split(':');
+            document.getElementById('qText').innerText = q;
+            document.getElementById('aText').innerText = a;
+            document.getElementById('counter').innerText = `${index + 1} / ${currentCards.length}`;
+            document.getElementById('mainCard').classList.remove('flipped');
+        }
+
+        function next() { index = (index + 1) % currentCards.length; updateUI(); }
+        function prev() { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); }
+
+        function toggleStar() {
+            const card = currentCards[index];
+            if(!starred.includes(card)) {
+                starred.push(card);
+                localStorage.setItem('starred_cards', JSON.stringify(starred));
+                alert("Přidáno k oblíbeným!");
+            }
+        }
+
+        // Klávesové zkratky (stejné jako v tvém Pythonu)
+        document.addEventListener('keydown', (e) => {
+            if(e.code === "Space") document.getElementById('mainCard').classList.toggle('flipped');
+            if(e.code === "ArrowRight") next();
+            if(e.code === "ArrowLeft") prev();
+        });
+
+        createOcean();
+        loadSubject();
+    </script>
+</body>
+</html>
