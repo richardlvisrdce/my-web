@@ -2,116 +2,210 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <title>Underwater Quizlet OS</title>
+    <title>ABYSSAL::TERMINAL_83</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
-            --deep-blue: #001219;
-            --ocean-cyan: #94d2bd;
-            --neon-purple: #9d50bb;
+            --atari-green: #33ff33;
+            --atari-green-glow: #00ff00;
+            --bg: #000000;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            background: linear-gradient(180deg, #005f73 0%, var(--deep-blue) 100%);
-            color: white;
-            font-family: 'Segoe UI', sans-serif;
-            min-height: 100vh;
+            background-color: var(--bg);
+            color: var(--atari-green);
+            font-family: 'VT323', monospace; /* Retro font */
+            height: 100vh;
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            overflow-x: hidden;
-            background-attachment: fixed;
+            justify-content: center;
+            text-transform: uppercase; /* Všechno velkým */
+            letter-spacing: 1px;
         }
 
-        /* BUBBLE ENGINE */
-        .bubble {
+        /* CRT EFEKT - Scanlines */
+        body::before {
+            content: " ";
+            display: block;
             position: absolute;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            bottom: -100px;
-            animation: rise var(--d) infinite ease-in;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 2000;
             pointer-events: none;
+            opacity: 0.15;
+        }
+
+        /* CRT EFEKT - Jemné blikání */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: rgba(18, 16, 16, 0.1);
+            opacity: 0;
+            z-index: 1999;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.552; }
+            100% { opacity: 0.482; }
+        }
+
+        /* ATARI RAIN ENGINE */
+        #bg-elements {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 1;
+            overflow: hidden;
         }
 
-        @keyframes rise {
-            0% { transform: translateY(0) scale(1); opacity: 0; }
-            50% { opacity: 0.6; }
-            100% { transform: translateY(-120vh) scale(1.5); opacity: 0; }
-        }
-
-        /* RYBY */
-        .fish {
+        .atari-drop {
             position: absolute;
-            font-size: 2.5rem;
-            animation: swim var(--t) infinite linear;
-            z-index: 2;
-            pointer-events: none;
+            color: var(--atari-green);
+            font-size: 1.5rem;
+            line-height: 1;
+            text-shadow: 0 0 5px var(--atari-green-glow);
+            animation: fall linear infinite;
+            opacity: 0.8;
         }
 
-        @keyframes swim {
-            from { left: -100px; transform: scaleX(1); }
-            to { left: 110vw; transform: scaleX(1); }
+        @keyframes fall {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(100vh); }
         }
 
         /* LOGIN OVERLAY */
         #login-overlay {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,18,25,0.85);
-            z-index: 100;
+            inset: 0;
+            background: var(--bg);
+            z-index: 1000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
+        }
+
+        .login-box {
+            border: 4px solid var(--atari-green);
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 20px var(--atari-green-glow);
         }
 
         /* HLAVNÍ PANEL */
         .glass-panel {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(15px);
-            border: 2px solid var(--ocean-cyan);
-            border-radius: 25px;
-            padding: 30px;
-            width: 90%;
-            max-width: 600px;
-            margin-top: 50px;
+            display: none; /* Skryto do login */
+            width: 800px;
+            height: 600px;
+            border: 4px solid var(--atari-green);
+            background: var(--bg);
             z-index: 10;
-            box-shadow: 0 0 40px rgba(148, 210, 189, 0.3);
-            text-align: center;
-            display: none; /* Skryto do přihlášení */
+            box-shadow: 0 0 30px var(--atari-green-glow);
+            padding: 20px;
+            grid-template-rows: 50px 1fr 100px;
         }
 
-        .card { height: 250px; perspective: 1000px; margin: 20px 0; cursor: pointer; }
+        header {
+            border-bottom: 2px solid var(--atari-green);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.5rem;
+        }
+
+        /* QUIZLET SECTION */
+        .content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card-container {
+            width: 100%;
+            height: 300px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
         .card-inner {
-            position: relative; width: 100%; height: 100%;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            width: 100%; height: 100%;
+            transition: transform 0.1s; /* Rychlé, "trhané" otočení */
             transform-style: preserve-3d;
-            border: 2px solid var(--ocean-cyan);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; padding: 20px; background: rgba(255,255,255,0.05);
+            border: 2px solid var(--atari-green);
         }
-        .card.flipped .card-inner { transform: rotateY(180deg); }
-        .card-front, .card-back {
-            position: absolute; backface-visibility: hidden;
-            width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-        }
-        .card-back { transform: rotateY(180deg); color: var(--ocean-cyan); background: rgba(0, 210, 255, 0.1); }
 
-        input, button, select {
-            background: rgba(0,18,25,0.8);
-            color: var(--ocean-cyan);
-            border: 1px solid var(--ocean-cyan);
-            padding: 12px 20px;
-            border-radius: 10px;
-            margin: 10px;
-            font-weight: bold;
-            font-size: 1rem;
+        .card-container.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute;
+            width: 100%; height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-size: 2.5rem;
+            text-align: center;
+            background: var(--bg);
         }
-        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); cursor: pointer; box-shadow: 0 0 15px var(--ocean-cyan); }
+
+        .card-back {
+            transform: rotateY(180deg);
+            color: var(--bg);
+            background: var(--atari-green);
+            font-size: 1.8rem;
+        }
+
+        /* INPUTY A TLAČÍTKA */
+        input, select, button {
+            background: var(--bg);
+            border: 2px solid var(--atari-green);
+            color: var(--atari-green);
+            font-family: 'VT323', monospace;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            outline: none;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: var(--atari-green);
+            color: var(--bg);
+            cursor: pointer;
+        }
+
+        .controls {
+            border-top: 2px solid var(--atari-green);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-top: 10px;
+        }
+
+        /* Blikající kurzor */
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2rem;
+            background: var(--atari-green);
+            animation: blink 0.5s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -119,33 +213,40 @@
     <div id="bg-elements"></div>
 
     <div id="login-overlay">
-        <h1 style="color: var(--ocean-cyan); text-shadow: 0 0 15px var(--ocean-cyan);">DEEP SEA ARCHIVE</h1>
-        <p>Zadej dešifrovací klíč pro vstup</p>
-        <input type="password" id="passKey" placeholder="Heslo...">
-        <button onclick="unlock()">ODEMKNOUT 🔓</button>
-        <p style="font-size: 0.8rem; opacity: 0.5;">(Zkus heslo: richard)</p>
+        <div class="login-box">
+            <h1 style="font-size: 3rem; margin-bottom: 10px;">ABYSSAL<span class="cursor"></span></h1>
+            <p style="margin-bottom: 20px;">SYSTEM 83 // RESEARCH TERMINAL</p>
+            <p>ZADEJ KÓD:</p>
+            <input type="password" id="passKey" placeholder="********">
+            <br><br>
+            <button onclick="unlock()">> VSTOUPIT</button>
+            <p style="margin-top: 15px; font-size: 0.9rem; opacity: 0.4;">Hint: richard</p>
+        </div>
     </div>
 
-    <div class="glass-panel" id="mainPanel">
-        <h1 style="color: var(--ocean-cyan);">RIŠA OS 🌊</h1>
-        
-        <select id="subjectSelect" onchange="loadSubject()">
-            <option value="BI301K">BI301K - Hlavní</option>
-            <option value="PB111">PB111 - Operační systémy</option>
-        </select>
+    <div class="glass-panel" id="desktop">
+        <header>
+            <div>ABYSSAL::OS v1983.1</div>
+            <select id="subjectSelect" onchange="loadSubject()">
+                <option value="BI301K">BI301K: OS</option>
+                <option value="PB111">PB111: PROGRAM</option>
+            </select>
+        </header>
 
-        <div class="card" id="mainCard" onclick="this.classList.toggle('flipped')">
-            <div class="card-inner">
-                <div class="card-front" id="qText">Vyber předmět...</div>
-                <div class="card-back" id="aText">Zde se objeví odpověď.</div>
+        <main class="content">
+            <div class="card-container" id="card" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-face card-front" id="qText">CEKÁM NA DATA</div>
+                    <div class="card-face card-back" id="aText">AUTORIZACE NUTNÁ</div>
+                </div>
             </div>
-        </div>
+        </main>
 
-        <div class="controls">
-            <button onclick="prev()">⬅ Zpět</button>
-            <span id="counter">0 / 0</span>
-            <button onclick="next()">Vpřed ➡</button>
-        </div>
+        <footer class="controls">
+            <button onclick="prev()">< PREV</button>
+            <div id="counter" style="font-size: 1.5rem;">0 / 0</div>
+            <button onclick="next()">NEXT ></button>
+        </footer>
     </div>
 
     <script>
@@ -153,99 +254,96 @@
         let currentCards = [];
         let index = 0;
 
-        // BUBBLE & FISH ENGINE - Spustí se hned!
-        function createOcean() {
+        // ATARI RAIN ENGINE - Spustí se hned!
+        function createAtariRain() {
             const container = document.getElementById('bg-elements');
-            const fishTypes = ['🐟', '🐠', '🦈', '🐙', '🐡', '🐢'];
             
-            // Bublinky
-            for(let i=0; i<20; i++) {
-                const b = document.createElement('div');
-                b.className = 'bubble';
-                b.style.left = Math.random() * 100 + 'vw';
-                const size = (Math.random() * 25 + 10) + 'px';
-                b.style.width = size;
-                b.style.height = size;
-                b.style.setProperty('--d', (Math.random() * 6 + 4) + 's');
-                b.style.animationDelay = Math.random() * 8 + 's';
-                container.appendChild(b);
-            }
-
-            // Ryby
-            for(let i=0; i<6; i++) {
-                const f = document.createElement('div');
-                f.className = 'fish';
-                f.innerText = fishTypes[Math.floor(Math.random() * fishTypes.length)];
-                f.style.top = Math.random() * 80 + 'vh';
-                f.style.setProperty('--t', (Math.random() * 12 + 8) + 's');
-                f.style.animationDelay = Math.random() * 15 + 's';
-                container.appendChild(f);
+            // ASCII loga a retro ryby
+            const atariSymbols = [
+                '//\\',  // Část loga Atari
+                '///\\\\\\', // Celé logo (zjednodušené)
+                '><(((°>', // Ryba
+                '>°))))><', // Jiná ryba
+                '[==]',   // Tank z Combat
+                '👾'       // Invader emoji (ponecháno pro dope efekt)
+            ];
+            
+            for(let i=0; i<30; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'atari-drop';
+                drop.innerText = atariSymbols[Math.floor(Math.random() * atariSymbols.length)];
+                
+                // Náhodná pozice a rychlost
+                drop.style.left = Math.random() * 100 + 'vw';
+                drop.style.animationDuration = (Math.random() * 5 + 3) + 's';
+                drop.style.animationDelay = Math.random() * 5 + 's';
+                
+                // Náhodná velikost (trochu)
+                drop.style.fontSize = (Math.random() * 1 + 1) + 'rem';
+                
+                container.appendChild(drop);
             }
         }
 
         function unlock() {
-            const input = document.getElementById('passKey').value;
-            if(!input) return;
+            const val = document.getElementById('passKey').value;
+            if(!val) return;
+            MASTER_KEY = val;
 
-            MASTER_KEY = input;
-
-            // NOUZOVÝ REŽIM PRO HESLO "richard"
-            if(input === "richard") {
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('mainPanel').style.display = 'block';
-                currentCards = ["Systém:Odemčeno pomocí 'richard'!", "Status:Funguje to!", "Data:Nahraj soubory do /data/"];
+            if(val === "richard") {
+                showDesktop();
+                currentCards = ["STATUS:SYSTEM ONLINE", "TARGET:LEARNING MODE", "ARCHIVE:83 ACTIVE"];
                 updateUI();
                 return;
             }
-
-            // Jinak zkusit reálné dešifrování
             loadSubject();
+        }
+
+        function showDesktop() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('desktop').style.display = 'grid';
         }
 
         async function loadSubject() {
             const sub = document.getElementById('subjectSelect').value;
             try {
                 const response = await fetch(`./data/${sub}.txt`);
-                if(!response.ok) throw new Error("Soubor nenalezen");
-                
                 const encryptedHex = await response.text();
                 const bytes = CryptoJS.AES.decrypt(encryptedHex.trim(), MASTER_KEY);
                 const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
 
-                if(!decryptedText) throw new Error("Špatné heslo");
+                if(!decryptedText) throw new Error();
 
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('mainPanel').style.display = 'block';
-
-                currentCards = decryptedText.split('\n').filter(line => line.includes(':'));
+                showDesktop();
+                currentCards = decryptedText.split('\n').filter(l => l.includes(':'));
                 index = 0;
                 updateUI();
             } catch (e) {
-                alert("Přístup odepřen: " + e.message);
+                alert("ERROR: INVALID KEY.");
             }
         }
 
         function updateUI() {
-            if(currentCards.length === 0) return;
+            if(!currentCards.length) return;
             const parts = currentCards[index].split(':');
             document.getElementById('qText').innerText = parts[0];
             document.getElementById('aText').innerText = parts[1] || "";
             document.getElementById('counter').innerText = `${index + 1} / ${currentCards.length}`;
-            document.getElementById('mainCard').classList.remove('flipped');
+            document.getElementById('card').classList.remove('flipped');
         }
 
-        function next() { if(currentCards.length) { index = (index + 1) % currentCards.length; updateUI(); } }
-        function prev() { if(currentCards.length) { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); } }
+        function next() { index = (index + 1) % currentCards.length; updateUI(); }
+        function prev() { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); }
 
-        // Start podvodního světa
-        createOcean();
-
-        // Klávesy
         document.addEventListener('keydown', (e) => {
-            if(e.code === "Space") document.getElementById('mainCard').classList.toggle('flipped');
+            if(e.code === "Space") document.getElementById('card').classList.toggle('flipped');
             if(e.code === "ArrowRight") next();
             if(e.code === "ArrowLeft") prev();
+            if(e.code === "Enter" && document.getElementById('login-overlay').style.display !== 'none') unlock();
         });
+
+        // Start Atari světa
+        createAtariRain();
     </script>
 </body>
 </html>
