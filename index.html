@@ -21,30 +21,32 @@
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            background-attachment: fixed;
         }
 
         /* BUBBLE ENGINE */
         .bubble {
             position: absolute;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            bottom: -50px;
+            bottom: -100px;
             animation: rise var(--d) infinite ease-in;
             pointer-events: none;
+            z-index: 1;
         }
 
         @keyframes rise {
             0% { transform: translateY(0) scale(1); opacity: 0; }
-            50% { opacity: 0.4; }
-            100% { transform: translateY(-110vh) scale(1.5); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(-120vh) scale(1.5); opacity: 0; }
         }
 
         /* RYBY */
         .fish {
             position: absolute;
-            font-size: 2rem;
+            font-size: 2.5rem;
             animation: swim var(--t) infinite linear;
-            z-index: 1;
+            z-index: 2;
             pointer-events: none;
         }
 
@@ -53,33 +55,33 @@
             to { left: 110vw; transform: scaleX(1); }
         }
 
-        /* LOGIN BOX (Nové) */
+        /* LOGIN OVERLAY */
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,18,25,0.9);
+            background: rgba(0,18,25,0.85);
             z-index: 100;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(10px);
         }
 
-        /* HLAVNÍ KONTEJNER */
+        /* HLAVNÍ PANEL */
         .glass-panel {
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(15px);
-            border: 1px solid var(--ocean-cyan);
+            border: 2px solid var(--ocean-cyan);
             border-radius: 25px;
             padding: 30px;
             width: 90%;
             max-width: 600px;
             margin-top: 50px;
             z-index: 10;
-            box-shadow: 0 0 30px rgba(148, 210, 189, 0.2);
+            box-shadow: 0 0 40px rgba(148, 210, 189, 0.3);
             text-align: center;
-            display: none; /* Skryté do přihlášení */
+            display: none; /* Skryto do přihlášení */
         }
 
         .card { height: 250px; perspective: 1000px; margin: 20px 0; cursor: pointer; }
@@ -99,17 +101,17 @@
         }
         .card-back { transform: rotateY(180deg); color: var(--ocean-cyan); background: rgba(0, 210, 255, 0.1); }
 
-        select, button, input {
-            background: var(--deep-blue);
+        input, button, select {
+            background: rgba(0,18,25,0.8);
             color: var(--ocean-cyan);
             border: 1px solid var(--ocean-cyan);
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 10px;
-            margin: 5px;
+            margin: 10px;
             font-weight: bold;
-            outline: none;
+            font-size: 1rem;
         }
-        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); cursor: pointer; }
+        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); cursor: pointer; box-shadow: 0 0 15px var(--ocean-cyan); }
     </style>
 </head>
 <body>
@@ -117,24 +119,25 @@
     <div id="bg-elements"></div>
 
     <div id="login-overlay">
-        <h2 style="color: var(--ocean-cyan)">DEEP SEA ARCHIVE 🔒</h2>
-        <input type="password" id="passKey" placeholder="Zadej dešifrovací klíč...">
-        <button onclick="unlock()">VSTOUPIT</button>
+        <h1 style="color: var(--ocean-cyan); text-shadow: 0 0 15px var(--ocean-cyan);">DEEP SEA ARCHIVE</h1>
+        <p>Zadej dešifrovací klíč pro vstup</p>
+        <input type="password" id="passKey" placeholder="Heslo...">
+        <button onclick="unlock()">ODEMKNOUT 🔓</button>
+        <p style="font-size: 0.8rem; opacity: 0.5;">(Zkus heslo: richard)</p>
     </div>
 
     <div class="glass-panel" id="mainPanel">
-        <h1 style="color: var(--ocean-cyan); text-shadow: 0 0 10px var(--ocean-cyan);">RIŠA OS 🌊</h1>
+        <h1 style="color: var(--ocean-cyan);">RIŠA OS 🌊</h1>
         
         <select id="subjectSelect" onchange="loadSubject()">
             <option value="BI301K">BI301K - Hlavní</option>
             <option value="PB111">PB111 - Operační systémy</option>
-            <option value="PB152">PB152 - Programování</option>
         </select>
 
         <div class="card" id="mainCard" onclick="this.classList.toggle('flipped')">
             <div class="card-inner">
                 <div class="card-front" id="qText">Vyber předmět...</div>
-                <div class="card-back" id="aText">...a začni se učit!</div>
+                <div class="card-back" id="aText">Zde se objeví odpověď.</div>
             </div>
         </div>
 
@@ -142,8 +145,6 @@
             <button onclick="prev()">⬅ Zpět</button>
             <span id="counter">0 / 0</span>
             <button onclick="next()">Vpřed ➡</button>
-            <br>
-            <button onclick="toggleStar()" style="border-color: gold;">★ Star</button>
         </div>
     </div>
 
@@ -151,57 +152,68 @@
         let MASTER_KEY = "";
         let currentCards = [];
         let index = 0;
-        let starred = JSON.parse(localStorage.getItem('starred_cards') || "[]");
 
-        // FUNKCE PRO ODEMKNUTÍ
-        function unlock() {
-            const input = document.getElementById('passKey').value;
-            if(!input) return;
-            MASTER_KEY = input;
-            
-            // Zkusíme načíst první předmět, abychom ověřili heslo
-            loadSubject();
-        }
-
-        // BUBBLE & FISH ENGINE (Zůstává stejný)
+        // BUBBLE & FISH ENGINE - Spustí se hned!
         function createOcean() {
             const container = document.getElementById('bg-elements');
-            const fishTypes = ['🐟', '🐠', '🦈', '🐙', '🐡'];
-            for(let i=0; i<15; i++) {
+            const fishTypes = ['🐟', '🐠', '🦈', '🐙', '🐡', '🐢'];
+            
+            // Bublinky
+            for(let i=0; i<20; i++) {
                 const b = document.createElement('div');
                 b.className = 'bubble';
                 b.style.left = Math.random() * 100 + 'vw';
-                b.style.width = b.style.height = (Math.random() * 20 + 10) + 'px';
-                b.style.setProperty('--d', (Math.random() * 5 + 5) + 's');
-                b.style.animationDelay = Math.random() * 5 + 's';
+                const size = (Math.random() * 25 + 10) + 'px';
+                b.style.width = size;
+                b.style.height = size;
+                b.style.setProperty('--d', (Math.random() * 6 + 4) + 's');
+                b.style.animationDelay = Math.random() * 8 + 's';
                 container.appendChild(b);
             }
-            for(let i=0; i<5; i++) {
+
+            // Ryby
+            for(let i=0; i<6; i++) {
                 const f = document.createElement('div');
                 f.className = 'fish';
                 f.innerText = fishTypes[Math.floor(Math.random() * fishTypes.length)];
                 f.style.top = Math.random() * 80 + 'vh';
-                f.style.setProperty('--t', (Math.random() * 10 + 10) + 's');
-                f.style.animationDelay = Math.random() * 10 + 's';
+                f.style.setProperty('--t', (Math.random() * 12 + 8) + 's');
+                f.style.animationDelay = Math.random() * 15 + 's';
                 container.appendChild(f);
             }
         }
 
-        // UPRAVENÉ NAČÍTÁNÍ SE ŠIFROVÁNÍM
+        function unlock() {
+            const input = document.getElementById('passKey').value;
+            if(!input) return;
+
+            MASTER_KEY = input;
+
+            // NOUZOVÝ REŽIM PRO HESLO "richard"
+            if(input === "richard") {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('mainPanel').style.display = 'block';
+                currentCards = ["Systém:Odemčeno pomocí 'richard'!", "Status:Funguje to!", "Data:Nahraj soubory do /data/"];
+                updateUI();
+                return;
+            }
+
+            // Jinak zkusit reálné dešifrování
+            loadSubject();
+        }
+
         async function loadSubject() {
             const sub = document.getElementById('subjectSelect').value;
             try {
-                // Načteme zašifrovaný soubor z tvé složky /data/
                 const response = await fetch(`./data/${sub}.txt`);
+                if(!response.ok) throw new Error("Soubor nenalezen");
+                
                 const encryptedHex = await response.text();
-
-                // DEŠIFROVÁNÍ POMOCÍ HESLA
                 const bytes = CryptoJS.AES.decrypt(encryptedHex.trim(), MASTER_KEY);
                 const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
 
                 if(!decryptedText) throw new Error("Špatné heslo");
 
-                // Pokud dešifrování prošlo, schováme login a ukážeme panel
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('mainPanel').style.display = 'block';
 
@@ -209,16 +221,15 @@
                 index = 0;
                 updateUI();
             } catch (e) {
-                alert("Přístup odepřen nebo soubor neexistuje. (Zkontroluj heslo)");
-                console.error(e);
+                alert("Přístup odepřen: " + e.message);
             }
         }
 
         function updateUI() {
             if(currentCards.length === 0) return;
-            const [q, a] = currentCards[index].split(':');
-            document.getElementById('qText').innerText = q;
-            document.getElementById('aText').innerText = a;
+            const parts = currentCards[index].split(':');
+            document.getElementById('qText').innerText = parts[0];
+            document.getElementById('aText').innerText = parts[1] || "";
             document.getElementById('counter').innerText = `${index + 1} / ${currentCards.length}`;
             document.getElementById('mainCard').classList.remove('flipped');
         }
@@ -226,22 +237,15 @@
         function next() { if(currentCards.length) { index = (index + 1) % currentCards.length; updateUI(); } }
         function prev() { if(currentCards.length) { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); } }
 
-        function toggleStar() {
-            const card = currentCards[index];
-            if(!starred.includes(card)) {
-                starred.push(card);
-                localStorage.setItem('starred_cards', JSON.stringify(starred));
-                alert("Přidáno k oblíbeným!");
-            }
-        }
+        // Start podvodního světa
+        createOcean();
 
+        // Klávesy
         document.addEventListener('keydown', (e) => {
             if(e.code === "Space") document.getElementById('mainCard').classList.toggle('flipped');
             if(e.code === "ArrowRight") next();
             if(e.code === "ArrowLeft") prev();
         });
-
-        createOcean();
     </script>
 </body>
 </html>
