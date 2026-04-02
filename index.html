@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Underwater Quizlet OS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         :root {
             --deep-blue: #001219;
@@ -52,6 +53,19 @@
             to { left: 110vw; transform: scaleX(1); }
         }
 
+        /* LOGIN BOX (Nové) */
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,18,25,0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(20px);
+        }
+
         /* HLAVNÍ KONTEJNER */
         .glass-panel {
             background: rgba(0, 0, 0, 0.5);
@@ -65,67 +79,50 @@
             z-index: 10;
             box-shadow: 0 0 30px rgba(148, 210, 189, 0.2);
             text-align: center;
+            display: none; /* Skryté do přihlášení */
         }
 
-        .card {
-            height: 250px;
-            perspective: 1000px;
-            margin: 20px 0;
-            cursor: pointer;
-        }
-
+        .card { height: 250px; perspective: 1000px; margin: 20px 0; cursor: pointer; }
         .card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
+            position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform-style: preserve-3d;
             border: 2px solid var(--ocean-cyan);
             border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            padding: 20px;
-            background: rgba(255,255,255,0.05);
-        }
-
-        .card.flipped .card-inner { transform: rotateY(180deg); }
-
-        .card-front, .card-back {
-            position: absolute;
-            backface-visibility: hidden;
-            width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; padding: 20px; background: rgba(255,255,255,0.05);
         }
-
-        .card-back { 
-            transform: rotateY(180deg); 
-            color: var(--ocean-cyan);
-            background: rgba(0, 210, 255, 0.1);
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back {
+            position: absolute; backface-visibility: hidden;
+            width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
         }
+        .card-back { transform: rotateY(180deg); color: var(--ocean-cyan); background: rgba(0, 210, 255, 0.1); }
 
-        select, button {
+        select, button, input {
             background: var(--deep-blue);
             color: var(--ocean-cyan);
             border: 1px solid var(--ocean-cyan);
             padding: 10px 20px;
             border-radius: 10px;
-            cursor: pointer;
             margin: 5px;
             font-weight: bold;
+            outline: none;
         }
-
-        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); }
-
-        .star { color: gold; font-size: 1.2rem; cursor: pointer; }
+        button:hover { background: var(--ocean-cyan); color: var(--deep-blue); cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="bg-elements"></div>
 
-    <div class="glass-panel">
+    <div id="login-overlay">
+        <h2 style="color: var(--ocean-cyan)">DEEP SEA ARCHIVE 🔒</h2>
+        <input type="password" id="passKey" placeholder="Zadej dešifrovací klíč...">
+        <button onclick="unlock()">VSTOUPIT</button>
+    </div>
+
+    <div class="glass-panel" id="mainPanel">
         <h1 style="color: var(--ocean-cyan); text-shadow: 0 0 10px var(--ocean-cyan);">RIŠA OS 🌊</h1>
         
         <select id="subjectSelect" onchange="loadSubject()">
@@ -151,28 +148,25 @@
     </div>
 
     <script>
-        // DATA - Simulace tvých souborů
-        const allData = {
-            "BI301K": [
-                "Kernel:Jádro operačního systému",
-                "Deadlock:Uváznutí procesů",
-                "Paging:Stránkování paměti"
-            ],
-            "PB111": [
-                "Bash:Unixový shell",
-                "Pipe:Propojení výstupu a vstupu"
-            ]
-        };
-
+        let MASTER_KEY = "";
         let currentCards = [];
         let index = 0;
         let starred = JSON.parse(localStorage.getItem('starred_cards') || "[]");
 
-        // BUBBLE & FISH ENGINE
+        // FUNKCE PRO ODEMKNUTÍ
+        function unlock() {
+            const input = document.getElementById('passKey').value;
+            if(!input) return;
+            MASTER_KEY = input;
+            
+            // Zkusíme načíst první předmět, abychom ověřili heslo
+            loadSubject();
+        }
+
+        // BUBBLE & FISH ENGINE (Zůstává stejný)
         function createOcean() {
             const container = document.getElementById('bg-elements');
             const fishTypes = ['🐟', '🐠', '🦈', '🐙', '🐡'];
-            
             for(let i=0; i<15; i++) {
                 const b = document.createElement('div');
                 b.className = 'bubble';
@@ -182,7 +176,6 @@
                 b.style.animationDelay = Math.random() * 5 + 's';
                 container.appendChild(b);
             }
-
             for(let i=0; i<5; i++) {
                 const f = document.createElement('div');
                 f.className = 'fish';
@@ -194,12 +187,31 @@
             }
         }
 
-        function loadSubject() {
+        // UPRAVENÉ NAČÍTÁNÍ SE ŠIFROVÁNÍM
+        async function loadSubject() {
             const sub = document.getElementById('subjectSelect').value;
-            // V reálu tady bude: fetch(`./data/${sub}_1.txt`)
-            currentCards = allData[sub] || [];
-            index = 0;
-            updateUI();
+            try {
+                // Načteme zašifrovaný soubor z tvé složky /data/
+                const response = await fetch(`./data/${sub}.txt`);
+                const encryptedHex = await response.text();
+
+                // DEŠIFROVÁNÍ POMOCÍ HESLA
+                const bytes = CryptoJS.AES.decrypt(encryptedHex.trim(), MASTER_KEY);
+                const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+
+                if(!decryptedText) throw new Error("Špatné heslo");
+
+                // Pokud dešifrování prošlo, schováme login a ukážeme panel
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('mainPanel').style.display = 'block';
+
+                currentCards = decryptedText.split('\n').filter(line => line.includes(':'));
+                index = 0;
+                updateUI();
+            } catch (e) {
+                alert("Přístup odepřen nebo soubor neexistuje. (Zkontroluj heslo)");
+                console.error(e);
+            }
         }
 
         function updateUI() {
@@ -211,8 +223,8 @@
             document.getElementById('mainCard').classList.remove('flipped');
         }
 
-        function next() { index = (index + 1) % currentCards.length; updateUI(); }
-        function prev() { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); }
+        function next() { if(currentCards.length) { index = (index + 1) % currentCards.length; updateUI(); } }
+        function prev() { if(currentCards.length) { index = (index - 1 + currentCards.length) % currentCards.length; updateUI(); } }
 
         function toggleStar() {
             const card = currentCards[index];
@@ -223,7 +235,6 @@
             }
         }
 
-        // Klávesové zkratky (stejné jako v tvém Pythonu)
         document.addEventListener('keydown', (e) => {
             if(e.code === "Space") document.getElementById('mainCard').classList.toggle('flipped');
             if(e.code === "ArrowRight") next();
@@ -231,7 +242,6 @@
         });
 
         createOcean();
-        loadSubject();
     </script>
 </body>
 </html>
